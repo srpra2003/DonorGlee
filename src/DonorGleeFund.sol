@@ -44,7 +44,8 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
     //////////////////////////
     error DonorGleeFund__InvalidAmount();
     error DonorGleeFund__InvaidAddress();
-    error DonationGleeFund__InvalidDonation();
+    error DonorGleeFund__InvalidDonation();
+    error DonorGleeFund__InvalidActiveTime();
 
 
     ////////////////////////////////
@@ -63,6 +64,7 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
         uint256 funds;
         uint256 goal;
         uint256 activeTime;
+        bool isPromoted;
         DonationStatus status;
     }
 
@@ -73,12 +75,20 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
     uint256 private immutable i_maxDonationInterval;
     uint256 private immutable i_raffleEntryInterval;
     uint256 private s_donationCount;
-    uint256 private s_platformDonation;
+    uint256 private s_platformFunds;
     uint256 private s_lastRaffleEntry;
     uint256 private s_raffleFund;
-    Donation[] private s_donations;
+    mapping(uint256 donationId => Donation donation) private s_donations;
     address[] private s_rafflePlayers;
-    address[] private whiteList;
+    mapping(address wallets => bool isWhiteListed) private s_whiteList;
+
+
+
+    //////////////////////////
+    ///////  EVENTS   ////////
+    //////////////////////////
+
+    event DonationCreated(address indexed creator, address indexed wallet, uint256 donationId);
 
 
     //////////////////////////
@@ -100,7 +110,14 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
 
     modifier ValidDonation(uint256 id){
         if(id >= s_donationCount){
-            revert DonationGleeFund__InvalidDonation();
+            revert DonorGleeFund__InvalidDonation();
+        }
+        _;
+    }
+
+    modifier ValidActiveTime(uint256 activeTime){
+        if(activeTime > i_maxDonationInterval){
+            revert DonorGleeFund__InvalidActiveTime();
         }
         _;
     }
@@ -112,13 +129,28 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
 
     constructor(uint256 _maxDonationInterval, uint256 _raffleEntryInterval) Ownable(msg.sender) {
         i_maxDonationInterval = _maxDonationInterval;
-        i_raffleEntryInterval = _raffleEntryInterval;
+        i_raffleEntryInterval = _raffleEntryInterval * (1 days);
         s_donationCount = 0;
         s_lastRaffleEntry = block.timestamp;
-        s_platformDonation = 0;
+        s_platformFunds = 0;
     }
 
-    function createDonation(string memory _name, string memory _description, address _walletAdd, uint256 _goal, uint256 _activeTime) public ValidAmount(_goal) ValidAddress(_walletAdd) {
+    function createDonation(string memory _name, string memory _description, address _walletAdd, uint256 _goal, uint256 _activeTime) public ValidAmount(_goal) ValidAddress(_walletAdd) ValidActiveTime(_activeTime){
+
+        Donation memory newDonation = s_donations[s_donationCount];
+        newDonation.donationId = s_donationCount;
+        newDonation.name = _name;
+        newDonation.description = _description;
+        newDonation.creator = msg.sender;
+        newDonation.funds = 0;
+        newDonation.walletAdd = _walletAdd;
+        newDonation.goal = _goal;
+        newDonation.activeTime = _activeTime*(1 days);
+        newDonation.isPromoted = s_whiteList[_walletAdd];
+        newDonation.status = DonationStatus.OPEN;
+
+        s_donationCount++;
+        emit DonationCreated(msg.sender,_walletAdd,newDonation.donationId);
 
     }
 
@@ -134,7 +166,7 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
 
     }
 
-    function reedeemPlatformCreatorFunds() public ValidAmount(s_platformDonation) {
+    function reedeemPlatformCreatorFunds() public ValidAmount(s_platformFunds) {
 
     }
     
