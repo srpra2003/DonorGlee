@@ -24,7 +24,7 @@ contract DeployFund is Script{
         ) = helperConfig.activeNetConfig();      
 
         vm.startBroadcast(deployerKey);
-        DonorGleeFund donorGleefund = new DonorGleeFund(MAXDONATION_INTERVAL,RAFFLE_ENTRY_INTERVAL,raffleContractAdd);
+        DonorGleeFund donorGleefund = new DonorGleeFund(MAXDONATION_INTERVAL,RAFFLE_ENTRY_INTERVAL,raffleContract);
         vm.stopBroadcast();  
 
         return (donorGleefund,helperConfig);
@@ -32,6 +32,6 @@ contract DeployFund is Script{
     }
 
     function run(address raffleContract) external returns(DonorGleeFund, HelperConfig){
-        return deployDonorGleeFund();
+        return deployDonorGleeFund(raffleContract);
     }
 }

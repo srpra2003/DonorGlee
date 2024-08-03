@@ -5,6 +5,7 @@ pragma solidity ^0.8.26;
 import {Script} from "forge-std/Script.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {DonorGleeRaffle} from "../src/DonorGleeRaffle.sol";
+import {CreateSubScription, FundSubscription, AddConsumer} from "./Interaction.s.sol";
 
 contract DeployRaffle is Script {
 
@@ -17,7 +18,7 @@ contract DeployRaffle is Script {
             bytes32 keyHash,
             uint64 subId,
             uint32 callbackGasLimit,
-            ,
+            address link,
             uint256 deployerKey
         ) = helperConfig.activeNetConfig();
 

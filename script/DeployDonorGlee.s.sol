@@ -23,7 +23,7 @@ contract DeployDonorGlee is Script{
             bytes32 keyHash,
             uint64 subId,
             uint32 callbackGasLimit,
-            ,
+            address link,
             uint256 deployerKey
         ) = helperConfig.activeNetConfig();
         
@@ -38,7 +38,7 @@ contract DeployDonorGlee is Script{
         vm.startBroadcast(deployerKey);
         DonorGleeRaffle donorGleeRaffle = new DonorGleeRaffle(vrfCoordinatorAdd,RAFFLE_INTERVAL,keyHash,subId,callbackGasLimit);
         DonorGleeFund donorGleeFund = new DonorGleeFund(MAXDONATION_INTERVAL,RAFFLE_ENTRY_INTERVAL,address(donorGleeRaffle));
-        donorGleeRaffle.transferOwnership(donorGleeFund);
+        donorGleeRaffle.transferOwnership(address(donorGleeFund));
         vm.stopBroadcast();
 
         AddConsumer addConsumer = new AddConsumer();

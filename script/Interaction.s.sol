@@ -6,7 +6,7 @@ import {Script} from "forge-std/Script.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {VRFCoordinatorV2Mock} from "@chainlink/v0.8/vrf/mocks/VRFCoordinatorV2Mock.sol";
 import {DevOpsTools} from "foundry-devops/src/DevOpsTools.sol";
-import {LinkToken} from "@chainlink/v0.4/LinkToken.sol";
+import {LinkTokenInterface} from "@chainlink/v0.8/shared/interfaces/LinkTokenInterface.sol";
 
 
 contract CreateSubScription is Script{
@@ -39,7 +39,11 @@ contract CreateSubScription is Script{
     }
 }
 
+
+
 contract FundSubscription is Script {
+
+    uint96 private constant AMOUNT_TO_FUND = 20 ether;
 
     function fundSubscription(address vrfCoordinatorAdd, uint64 subId, address link, uint256 deployerKey) public returns(uint64){
 
@@ -53,7 +57,7 @@ contract FundSubscription is Script {
             VRFCoordinatorV2Mock(vrfCoordinatorAdd).fundSubscription(subId,AMOUNT_TO_FUND);
         }
         else{
-            LinkToken(link).transferAndCall(vrfCoordinatorAdd,AMOUNT_TO_FUND,abi.encode(subId));
+            LinkTokenInterface(link).transferAndCall(vrfCoordinatorAdd,AMOUNT_TO_FUND,abi.encode(subId));
         }
         vm.stopBroadcast();
 
@@ -76,10 +80,12 @@ contract FundSubscription is Script {
         
     }
 
-    function run() extrenal returns(uint256){
+    function run() external returns(uint256){
         return fundSubscriptionWithoutConfig();
     }
 }
+
+
 
 contract AddConsumer is Script {
 
@@ -113,7 +119,7 @@ contract AddConsumer is Script {
 
     }
 
-    function run() extrenal returns(uint64){
+    function run() external returns(uint64){
         address lastDeployed = DevOpsTools.get_most_recent_deployment("DonorGleeRaffle",block.chainid);
         return addConsumerWithoutConfig(lastDeployed);
     }

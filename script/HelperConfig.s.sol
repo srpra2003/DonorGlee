@@ -5,7 +5,7 @@ pragma solidity ^0.8.26;
 import {Script} from "forge-std/Script.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {VRFCoordinatorV2Mock} from "@chainlink/v0.8/vrf/mocks/VRFCoordinatorV2Mock.sol";
-import {LinkToken} from "@chainlink/v0.4/LinkToken.sol";
+import {MockLinkToken} from "../test/mocks/MockLinkToken.sol";
 
 contract HelperConfig is Script {
     struct NetworkConfig {
@@ -16,7 +16,7 @@ contract HelperConfig is Script {
         address link;
         uint256 deployerKey;
     }
-
+    
     uint96 private constant BASE_FEE = 0.01 ether;
     uint96 private constant GASEPRICE_LINKS = 20000;
     NetworkConfig public activeNetConfig;
@@ -29,7 +29,7 @@ contract HelperConfig is Script {
         }
     }
 
-    function getSepoliaNetConfig() internal returns (NetworkConfig memory) {
+    function getSepoliaNetConfig() internal view returns (NetworkConfig memory) {
         NetworkConfig memory netConfig = NetworkConfig({
             vrfCoordinatorAdd: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
             keyHash: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae, //100 gwei
@@ -49,7 +49,7 @@ contract HelperConfig is Script {
 
         vm.startBroadcast();
         VRFCoordinatorV2Mock vrfCoordinator = new VRFCoordinatorV2Mock(BASE_FEE, GASEPRICE_LINKS);
-        LinkToken linkToken = new LinkToken();
+        MockLinkToken linkToken = new MockLinkToken();
         vm.stopBroadcast();
 
         NetworkConfig memory netConfig = NetworkConfig({
