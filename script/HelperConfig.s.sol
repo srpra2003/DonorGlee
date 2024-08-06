@@ -16,7 +16,7 @@ contract HelperConfig is Script {
         address link;
         uint256 deployerKey;
     }
-    
+
     uint96 private constant BASE_FEE = 0.01 ether;
     uint96 private constant GASEPRICE_LINKS = 20000;
     NetworkConfig public activeNetConfig;
