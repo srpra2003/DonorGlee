@@ -30,7 +30,7 @@ contract DonorGleeRaffle is Ownable, AutomationCompatibleInterface, VRFConsumerB
     ////////////////////////////////
     uint16 private constant MINIMUM_CONFIRNATIONS = 3;
     uint32 private constant NUM_WORDS = 1;
-    uint256 private immutable s_raffleInterval;
+    uint256 private immutable i_raffleInterval;
     bytes32 private immutable i_keyHash;
     uint32 private immutable i_callbackGasLimit;
     uint64 private immutable i_subId;
@@ -62,7 +62,7 @@ contract DonorGleeRaffle is Ownable, AutomationCompatibleInterface, VRFConsumerB
         i_keyHash = keyHash;
         i_callbackGasLimit = callbackGasLimit;
         i_subId = subId;
-        s_raffleInterval = raffleInterval * (1 days);
+        i_raffleInterval = raffleInterval * (1 days);
         s_state = RaffleState.OPEN;
         s_prizePool = 0;
         s_lastWinTime = block.timestamp;
@@ -76,6 +76,7 @@ contract DonorGleeRaffle is Ownable, AutomationCompatibleInterface, VRFConsumerB
         for (uint256 i = 0; i < newPlayers.length; i++) {
             if (!s_doesExist[newPlayers[i]]) {
                 s_players.push(newPlayers[i]);
+                s_doesExist[newPlayers[i]] = true;
             }
         }
 
@@ -88,7 +89,7 @@ contract DonorGleeRaffle is Ownable, AutomationCompatibleInterface, VRFConsumerB
         view
         returns (bool upkeepNeeded, bytes memory /*performData*/ )
     {
-        bool isTime = (block.timestamp - s_lastWinTime >= s_raffleInterval);
+        bool isTime = (block.timestamp - s_lastWinTime >= i_raffleInterval);
         bool hasPlayers = (s_players.length > 0);
         bool hasMoney = (s_prizePool > 0);
         bool isOpen = (s_state == RaffleState.OPEN);
@@ -130,5 +131,21 @@ contract DonorGleeRaffle is Ownable, AutomationCompatibleInterface, VRFConsumerB
 
     function getRaffleStatus() public view returns (RaffleState) {
         return s_state;
+    }
+
+    function getRaffleInterval() public view returns (uint256) {
+        return i_raffleInterval;
+    }
+
+    function getOwner() public view returns (address) {
+        return owner();
+    }
+
+    function getConstructorArgs() public view returns (address, uint256, bytes32, uint64, uint32) {
+        return (address(vrfCoordinator), i_raffleInterval, i_keyHash, i_subId, i_callbackGasLimit);
+    }
+
+    function getTotalPlayersInCurrentRaffle() public view returns(uint256){
+        return s_players.length;
     }
 }
