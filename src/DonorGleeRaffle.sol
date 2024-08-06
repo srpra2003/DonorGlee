@@ -46,7 +46,7 @@ contract DonorGleeRaffle is Ownable, AutomationCompatibleInterface, VRFConsumerB
     //////////////////////////
     event RaffleEntered(address[] players, uint256 raffleEnteredAmount);
     event WinnerRequsted(uint256 indexed requestId);
-    event WinnerPlayerDeclared(address indexed winnerPlayer, uint256 requestId, uint256 winAmount);
+    event WinnerPlayerDeclared(address indexed winnerPlayer, uint256 indexed requestId, uint256 winAmount);
 
     //////////////////////////
     /////// FUNCTIONS ////////
@@ -145,7 +145,11 @@ contract DonorGleeRaffle is Ownable, AutomationCompatibleInterface, VRFConsumerB
         return (address(vrfCoordinator), i_raffleInterval, i_keyHash, i_subId, i_callbackGasLimit);
     }
 
-    function getTotalPlayersInCurrentRaffle() public view returns(uint256){
+    function getTotalPlayersInCurrentRaffle() public view returns (uint256) {
         return s_players.length;
+    }
+
+    function getBalance() public view returns(uint256){
+        return address(this).balance;
     }
 }

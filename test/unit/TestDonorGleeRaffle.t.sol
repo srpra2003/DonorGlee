@@ -8,6 +8,8 @@ import {DonorGleeRaffle} from "../../src/DonorGleeRaffle.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {Ownable} from "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Vm} from "forge-std/Vm.sol";
+import {VRFCoordinatorV2Mock} from "@chainlink/v0.8/vrf/mocks/VRFCoordinatorV2Mock.sol";
+
 
 contract TestDonorGleeRaffle is Test {
     DeployRaffle private deployDonorGleeRaffle;
@@ -25,7 +27,6 @@ contract TestDonorGleeRaffle is Test {
     uint256 private deployerKey;
 
     event RaffleEntered(address[] players, uint256 raffleEnteredAmount);
-
 
     function setUp() public {
         deployDonorGleeRaffle = new DeployRaffle();
@@ -76,31 +77,32 @@ contract TestDonorGleeRaffle is Test {
     function testOwnerCanEnterNewPlayersToRaffle() public {
         address[] memory tempPlayers = new address[](10);
         for (uint256 i = 0; i < 10; i++) {
-            tempPlayers[i] = address(uint160(i+1));
+            tempPlayers[i] = address(uint160(i + 1));
         }
 
         address mainOwner = donorGleeRaffle.getOwner();
 
         vm.prank(mainOwner);
-        vm.deal(mainOwner,100 ether);
+        vm.deal(mainOwner, 100 ether);
         vm.expectEmit(address(donorGleeRaffle));
-        emit RaffleEntered(tempPlayers,2 ether);
+        emit RaffleEntered(tempPlayers, 2 ether);
         donorGleeRaffle.enterRaffle{value: 2 ether}(tempPlayers);
     }
 
-    function testPlayersCanNotInfluenceRaffleByDuplicacy() public RaffleEnteredOnce{
+    function testPlayersCanNotInfluenceRaffleByDuplicacy() public RaffleEnteredOnce {
         //Players From address 0x1 to 0xA are added to raffle by RaffleEnteredOnce
 
         address[] memory tempPlayers = new address[](5);
-        for(uint256 i = 8; i < 13; i++){               //new teamPlayers are 0x9 to 0xD 
-            tempPlayers[i-8] = address(uint160(i+1));
+        for (uint256 i = 8; i < 13; i++) {
+            //new teamPlayers are 0x9 to 0xD
+            tempPlayers[i - 8] = address(uint160(i + 1));
         }
 
         address mainOwner = donorGleeRaffle.getOwner();
         uint256 startPlayersCount = donorGleeRaffle.getTotalPlayersInCurrentRaffle();
 
         vm.prank(mainOwner);
-        vm.deal(mainOwner,100 ether);
+        vm.deal(mainOwner, 100 ether);
         donorGleeRaffle.enterRaffle{value: 5 ether}(tempPlayers);
 
         uint256 endPlatyersCount = donorGleeRaffle.getTotalPlayersInCurrentRaffle();
@@ -109,43 +111,74 @@ contract TestDonorGleeRaffle is Test {
         console.log(endPlatyersCount);
 
         vm.expectRevert();
-        assert(startPlayersCount+5 == endPlatyersCount);
+        assert(startPlayersCount + 5 == endPlatyersCount);
     }
 
-    function testOwnerCannotEnterRaffleWhenItIsInCalculatingState() public RaffleEnteredOnce{
+    function testOwnerCannotEnterRaffleWhenItIsInCalculatingState() public RaffleEnteredOnce {
+        vm.warp(block.timestamp + (RAFFLE_INTERVAL * (1 days)) + 10);
+        vm.roll(block.number + 1);
 
-        vm.warp(block.timestamp+(RAFFLE_INTERVAL* (1 days))+10);
-        vm.roll(block.number+1);
-
-        vm.prank(USER);  //let set USER as he is the chainlink keeper and avoking performUPkeep method
+        vm.prank(USER); //let set USER as he is the chainlink keeper and avoking performUPkeep method
         vm.recordLogs();
         donorGleeRaffle.performUpkeep("0x0");
-
         Vm.Log[] memory entries = vm.getRecordedLogs();
         console.log(uint256(entries[0].topics[1]));
         console.log(uint256(donorGleeRaffle.getRaffleStatus()));
-        
         address mainOwner = donorGleeRaffle.getOwner();
+
         vm.prank(mainOwner);
-        vm.deal(mainOwner,100 ether);
+        vm.deal(mainOwner, 100 ether);
         vm.expectRevert(DonorGleeRaffle.DonorGleeRaffle__RaffleIsCALCULATING.selector);
         donorGleeRaffle.enterRaffle{value: 3 ether}(new address[](10));
     }
 
+    function testDeclaringWinnerResetstheRaffle() public RaffleEnteredOnce skipFork{
+        vm.warp(block.timestamp + (RAFFLE_INTERVAL * (1 days)) + 10);
+        vm.roll(block.number + 1);
+
+        vm.prank(USER); //let set USER as he is the chainlink keeper and avoking performUPkeep method
+        vm.recordLogs();
+        donorGleeRaffle.performUpkeep("0x0");
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        bytes32 requestId = entries[1].topics[1];
+        uint256 startRaffleBalance = donorGleeRaffle.getBalance();
+        DonorGleeRaffle.RaffleState startState = donorGleeRaffle.getRaffleStatus();
 
 
-    modifier RaffleEnteredOnce {
+        vm.recordLogs();
+        VRFCoordinatorV2Mock(vrfCoordinatorAdd).fulfillRandomWords(uint256(requestId),address(donorGleeRaffle));
+        entries = vm.getRecordedLogs();
+
+        address winner = address(uint160(uint256(entries[0].topics[1])));
+        uint256 endRaffleBalance = donorGleeRaffle.getBalance();   
+        DonorGleeRaffle.RaffleState endState = donorGleeRaffle.getRaffleStatus();
+
+        assertEq(startRaffleBalance,address(winner).balance);    //This can revert is winner player has balance in his address before winning
+        assertEq(endRaffleBalance,0);
+        assertEq(uint256(startState),uint256(DonorGleeRaffle.RaffleState.CALCULATING));
+        assertEq(uint256(endState),uint256(DonorGleeRaffle.RaffleState.OPEN));
+
+    }
+
+    modifier RaffleEnteredOnce() {
         address[] memory tempPlayers = new address[](10);
         for (uint256 i = 0; i < 10; i++) {
-            tempPlayers[i] = address(uint160(i+1));
+            tempPlayers[i] = address(uint160(i + 1));
         }
 
         address mainOwner = donorGleeRaffle.getOwner();
 
         vm.prank(mainOwner);
-        vm.deal(mainOwner,100 ether);
+        vm.deal(mainOwner, 100 ether);
 
-        donorGleeRaffle.enterRaffle{value: 2 ether}(tempPlayers);       
+        donorGleeRaffle.enterRaffle{value: 2 ether}(tempPlayers);
+        _;
+    }
+
+    modifier skipFork{
+        if(block.chainid != 31337){
+            return;
+        }
         _;
     }
 }
