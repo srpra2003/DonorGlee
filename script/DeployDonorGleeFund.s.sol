@@ -18,10 +18,10 @@ contract DeployFund is Script {
         vm.startBroadcast(deployerKey);
         DonorGleeFund donorGleefund = new DonorGleeFund(MAXDONATION_INTERVAL, RAFFLE_ENTRY_INTERVAL, raffleContract);
         vm.stopBroadcast();
-        
+
         //setting the owner of the raffle contract to the created fund contract
         // it is assumed that account(deployerkey is the actual owner of the raffle contract)
-        vm.startBroadcast(deployerKey);    //if account(deployerKey) is not the actual owner of the raffle contract then this transcation will revert
+        vm.startBroadcast(deployerKey); //if account(deployerKey) is not the actual owner of the raffle contract then this transcation will revert
         DonorGleeRaffle(raffleContract).transferOwnership(address(donorGleefund));
         vm.stopBroadcast();
 

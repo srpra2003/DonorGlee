@@ -72,7 +72,9 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
     event DonationWithdrawn(address indexed creator, uint256 donationId, uint256 timeStamp, uint256 withdrawAmount);
     event WalletWhiteListed(address indexed wallet);
     event WalletRemovedFromWhiteList(address indexed wallet);
-    event DonationExpired(uint256 donationId, uint256 timeStamp);
+    event DonationExpired(uint256 indexed donationId, uint256 timeStamp);
+    event PlatformFunded(address indexed donor, uint256 indexed donationAmount, uint256 timeStamp);
+    event PlatformFundWithDrawed(uint256 withdrawedAmount);
 
     //////////////////////////
     /////// MODIFIERS ////////
@@ -119,7 +121,7 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
         address _walletAdd,
         uint256 _goal,
         uint256 _activeTime
-    ) public ValidAmount(_goal) ValidAddress(_walletAdd) returns(uint256){
+    ) public ValidAmount(_goal) ValidAddress(_walletAdd) returns (uint256) {
         if (_activeTime > i_maxDonationInterval) {
             revert DonorGleeFund__InvalidActiveTime();
         }
@@ -160,7 +162,12 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
         emit DonationRaised(donationId, msg.sender);
     }
 
-    function redeemDonation(uint256 donationId) public ValidDonation(donationId) nonReentrant{
+    function redeemDonation(uint256 donationId)
+        public
+        ValidDonation(donationId)
+        ValidAmount(s_donations[donationId].funds)
+        nonReentrant
+    {
         if (msg.sender != s_donations[donationId].creator) {
             revert DonorGleeFund__IllegealAccessToDonation(msg.sender);
         }
@@ -182,11 +189,13 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
         s_prizePool += _raffleContro;
         s_rafflePlayers.push(msg.sender);
         s_platformFunds += _actualFund;
+        emit PlatformFunded(msg.sender, _actualFund, block.timestamp);
     }
 
     function reedeemPlatformCreatorFunds() public ValidAmount(s_platformFunds) onlyOwner {
         uint256 fundsToTransfer = s_platformFunds;
         s_platformFunds = 0;
+        emit PlatformFundWithDrawed(fundsToTransfer);
 
         (bool callSuccess,) = payable(owner()).call{value: fundsToTransfer}("");
         if (!callSuccess) {
@@ -233,7 +242,7 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
 
     function getRaffleState() public view returns (DonorGleeRaffle.RaffleState state) {
         (bool callSuccess, bytes memory returnData) =
-            i_raffleContract.staticcall(abi.encodeWithSignature("getRaffleStatus"));
+            i_raffleContract.staticcall(abi.encodeWithSignature("getRaffleStatus()"));
         if (!callSuccess) {
             revert DonorGleeFund__AccessToRaffleContractStateFailed();
         }
@@ -267,25 +276,43 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
 
         uint256 raffleAmount = s_prizePool;
         address[] memory players = s_rafflePlayers;
+        s_prizePool = 0;
         s_lastRaffleEntry = block.timestamp;
         s_rafflePlayers = new address[](0);
 
-        (bool callSuccess,) =
-            payable(i_raffleContract).call{value: raffleAmount}(abi.encodeWithSignature("enterRaffle", players));
+        (bool callSuccess,) = payable(i_raffleContract).call{value: raffleAmount}(
+            abi.encodeWithSignature("enterRaffle(address[])", players)
+        );
         if (!callSuccess) {
             revert DonorGleeFund__TransferFailed();
         }
     }
 
-    function getTotalDonations() public view returns(uint256) {
+    function getTotalDonations() public view returns (uint256) {
         return s_donationCount;
     }
 
-    function checkWalletWhiteListed(address wallet) public view returns(bool){
+    function checkWalletWhiteListed(address wallet) public view returns (bool) {
         return s_whiteList[wallet];
     }
 
-    function getDonationDetails(uint256 donationId) public view returns(Donation memory){
+    function getDonationDetails(uint256 donationId) public view returns (Donation memory) {
         return s_donations[donationId];
+    }
+
+    function getPrizePoolForRaffleInCurrentSlot() public view returns (uint256) {
+        return s_prizePool;
+    }
+
+    function getPlayersForRaffleInCurrentSlot() public view returns (uint256) {
+        return s_rafflePlayers.length;
+    }
+
+    function getRaffleContract() public view returns (address) {
+        return i_raffleContract;
+    }
+
+    function getLastRaffleEntryTime() public view returns (uint256) {
+        return s_lastRaffleEntry;
     }
 }

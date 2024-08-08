@@ -149,7 +149,11 @@ contract DonorGleeRaffle is Ownable, AutomationCompatibleInterface, VRFConsumerB
         return s_players.length;
     }
 
-    function getBalance() public view returns(uint256){
+    function getBalance() public view returns (uint256) {
         return address(this).balance;
+    }
+
+    function getLastWinTime() public view returns (uint256) {
+        return s_lastWinTime;
     }
 }
