@@ -5,6 +5,7 @@ pragma solidity ^0.8.26;
 import {AutomationCompatibleInterface} from "@chainlink/v0.8/interfaces/AutomationCompatibleInterface.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {DonorGleeRaffle} from "./DonorGleeRaffle.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title DonorGleeFund
@@ -12,7 +13,7 @@ import {DonorGleeRaffle} from "./DonorGleeRaffle.sol";
  * @notice This is the Funding Contract where Funds to the donations is managed and raised and
  *         the raffle system is also managed here
  */
-contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
+contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuard {
     //////////////////////////
     ///////  ERRORS   ////////
     //////////////////////////
@@ -118,7 +119,7 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
         address _walletAdd,
         uint256 _goal,
         uint256 _activeTime
-    ) public ValidAmount(_goal) ValidAddress(_walletAdd) {
+    ) public ValidAmount(_goal) ValidAddress(_walletAdd) returns(uint256){
         if (_activeTime > i_maxDonationInterval) {
             revert DonorGleeFund__InvalidActiveTime();
         }
@@ -136,8 +137,12 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
         newDonation.isPromoted = s_whiteList[_walletAdd];
         newDonation.status = DonationStatus.OPEN;
 
+        s_donations[s_donationCount] = newDonation;
+
         s_donationCount++;
         emit DonationCreated(msg.sender, _walletAdd, newDonation.donationId);
+
+        return newDonation.donationId;
     }
 
     function fundDonation(uint256 donationId) public payable ValidDonation(donationId) ValidAmount(msg.value) {
@@ -155,7 +160,7 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
         emit DonationRaised(donationId, msg.sender);
     }
 
-    function redeemDonation(uint256 donationId) public ValidDonation(donationId) {
+    function redeemDonation(uint256 donationId) public ValidDonation(donationId) nonReentrant{
         if (msg.sender != s_donations[donationId].creator) {
             revert DonorGleeFund__IllegealAccessToDonation(msg.sender);
         }
@@ -270,5 +275,17 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable {
         if (!callSuccess) {
             revert DonorGleeFund__TransferFailed();
         }
+    }
+
+    function getTotalDonations() public view returns(uint256) {
+        return s_donationCount;
+    }
+
+    function checkWalletWhiteListed(address wallet) public view returns(bool){
+        return s_whiteList[wallet];
+    }
+
+    function getDonationDetails(uint256 donationId) public view returns(Donation memory){
+        return s_donations[donationId];
     }
 }
