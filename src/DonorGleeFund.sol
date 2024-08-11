@@ -59,6 +59,7 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
     uint256 private s_platformFunds;
     uint256 private s_lastRaffleEntry;
     uint256 private s_prizePool;
+    uint256 private s_cntWhiteListedWallets;
     address[] private s_rafflePlayers;
     mapping(uint256 donationId => Donation donation) private s_donations;
     mapping(address wallets => bool isWhiteListed) private s_whiteList;
@@ -113,6 +114,7 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
         s_donationCount = 0;
         s_lastRaffleEntry = block.timestamp;
         s_platformFunds = 0;
+        s_cntWhiteListedWallets = 0;
     }
 
     function createDonation(
@@ -209,6 +211,7 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
         }
 
         s_whiteList[wallet] = true;
+        s_cntWhiteListedWallets++;
         for (uint256 i = 0; i < s_donationCount; i++) {
             if (s_donations[i].walletAdd == wallet) {
                 s_donations[i].isPromoted = true;
@@ -223,6 +226,7 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
         }
 
         s_whiteList[wallet] = false;
+        s_cntWhiteListedWallets--;
         for (uint256 i = 0; i < s_donationCount; i++) {
             if (s_donations[i].walletAdd == wallet) {
                 s_donations[i].isPromoted = false;
@@ -314,5 +318,9 @@ contract DonorGleeFund is AutomationCompatibleInterface, Ownable, ReentrancyGuar
 
     function getLastRaffleEntryTime() public view returns (uint256) {
         return s_lastRaffleEntry;
+    }
+
+    function getTotalWhiteListedWallets() public view returns (uint256) {
+        return s_cntWhiteListedWallets;
     }
 }

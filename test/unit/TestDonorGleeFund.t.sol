@@ -31,6 +31,8 @@ contract TestDonorGleeFund is Test {
     event DonationCreated(address indexed creator, address indexed wallet, uint256 donationId);
     event DonationExpired(uint256 indexed donationId, uint256 timeStamp);
     event DonationWithdrawn(address indexed creator, uint256 donationId, uint256 timeStamp, uint256 withdrawAmount);
+    event WalletWhiteListed(address indexed wallet);
+    event WalletRemovedFromWhiteList(address indexed wallet);
 
     function setUp() public {
         deployDonorGleeFund = new DeployFund();
@@ -440,5 +442,41 @@ contract TestDonorGleeFund is Test {
         assertEq(0, donorGleeFund.getPrizePoolForRaffleInCurrentSlot());
         assertEq(0, donorGleeFund.getPlayersForRaffleInCurrentSlot());
         assert(startingFundContractBalance - startingPrizePool <= endingFundContractBalance);
+    }
+
+    function testAddingWalletToWhiteListEmitsTheEventOrNot() public {
+        address actualFundContractOwner = vm.addr(deployerKey);
+        address walletToAddToWhiteList = makeAddr("FakeWallet");
+
+        vm.prank(actualFundContractOwner);
+
+        vm.expectEmit(true, false, false, false, address(donorGleeFund));
+        emit WalletWhiteListed(walletToAddToWhiteList);
+        donorGleeFund.addWalletToWhiteList(walletToAddToWhiteList);
+
+        vm.prank(actualFundContractOwner);
+
+        address alreadyWhitelistedWallet = walletToAddToWhiteList;
+        donorGleeFund.addWalletToWhiteList(alreadyWhitelistedWallet);
+
+        assertEq(donorGleeFund.getTotalWhiteListedWallets(), 1);
+    }
+
+    function testRemovingWalletsFromWhiteListingEmitsEventOrNot() public {
+        address actualFundContractOwner = vm.addr(deployerKey);
+        address walletToAddToWhiteList = makeAddr("FakeWallet");
+        address walletToRemoveFromWhiteList = walletToAddToWhiteList;
+
+        vm.prank(actualFundContractOwner);
+        donorGleeFund.addWalletToWhiteList(walletToAddToWhiteList);
+
+        assertEq(donorGleeFund.getTotalWhiteListedWallets(), 1);
+
+        vm.prank(actualFundContractOwner);
+        vm.expectEmit(true, false, false, false, address(donorGleeFund));
+        emit WalletRemovedFromWhiteList(walletToRemoveFromWhiteList);
+        donorGleeFund.removeWalletFromWhiteList(walletToRemoveFromWhiteList);
+
+        assertEq(donorGleeFund.getTotalWhiteListedWallets(), 0);
     }
 }
